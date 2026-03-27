@@ -1,0 +1,9 @@
+Synthetic test data generated for the reconciliation assessment.
+
+Assumptions:
+- Platform transactions are recorded instantly on the transaction date.
+- Bank settlements arrive one to two calendar days later unless a delayed settlement is being simulated.
+- A valid reconciliation normally has one bank settlement per platform transaction reference.
+- Amounts are compared in integer paise and raw decimal drift is used only for rounding diagnostics.
+- Refunds must reference a valid original transaction and cannot exceed the original amount in aggregate.
+- Cross-month settlement is treated as a reporting gap even when the amount matches exactly.

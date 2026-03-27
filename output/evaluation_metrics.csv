@@ -1,0 +1,9 @@
+metric,value,display_value,status,description
+match_rate_pct,78.75,78.75%,bad,Share of transactions that reconciled cleanly.
+gap_rate_pct,21.25,21.25%,bad,Share of transactions requiring operational attention.
+net_exposure_inr,3974.89,"Rs 3,974.89000",bad,Absolute rupee gap between platform and bank totals.
+duplicate_exposure_inr,15349.75,"Rs 15,349.75000",bad,Over-settlement exposure caused by duplicate bank payouts.
+avg_settlement_lag_days,1.65,1.65 days,good,Average delay between transaction date and settlement date.
+delayed_settlement_count,3.0,3,bad,Transactions breaching the agreed settlement window.
+orphan_refund_count,3.0,3,bad,Refunds without a valid original transaction link.
+coverage_rate_pct,17.5,17.50%,info,How much of the flagged exception set is observable on both sides of the reconciliation.

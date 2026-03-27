@@ -1,0 +1,8 @@
+gap_type,transaction_count,total_txn_amount_inr,total_settled_inr,net_delta_inr,requires_action
+DUPLICATE,3,15349.75,30699.5,15349.75,True
+ORPHAN_REFUND,3,-674.36,0.0,0.0,True
+DELAYED_SETTLEMENT,3,22924.5,22924.5,0.0,True
+CROSS_MONTH,3,23499.5,23499.5,0.005,True
+ROUNDING_DIFF,2,8800.0,8800.0,0.01,True
+UNSETTLED,3,19999.0,0.0,0.0,True
+MATCHED,63,332122.33,332122.33,0.0,False

@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Payment Reconciliation Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --matched:     #1D9E75; --matched-bg:   #E1F5EE; --matched-muted: #9FE1CB;
+  --duplicate:   #E24B4A; --duplicate-bg: #FCEBEB; --duplicate-muted:#F7C1C1;
+  --orphan:      #BA7517; --orphan-bg:    #FAEEDA; --orphan-muted:  #FAC775;
+  --cross:       #378ADD; --cross-bg:     #E6F1FB; --cross-muted:   #B5D4F4;
+  --rounding:    #7F77DD; --rounding-bg:  #EEEDFE; --rounding-muted:#CECBF6;
+  --missing:     #D85A30; --missing-bg:   #FAECE7; --missing-muted: #F5C4B3;
+  --bg:          #F5F4F0;
+  --surface:     #FFFFFF;
+  --surface2:    #F0EFEB;
+  --border:      rgba(0,0,0,0.08);
+  --border-md:   rgba(0,0,0,0.14);
+  --text:        #1A1A18;
+  --text-2:      #6B6B67;
+  --text-3:      #9A9A96;
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   16px;
+  --font:        'Sora', sans-serif;
+  --mono:        'DM Mono', monospace;
+  --shadow:      0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:   0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:       #141412;
+    --surface:  #1E1E1C;
+    --surface2: #262624;
+    --border:   rgba(255,255,255,0.07);
+    --border-md:rgba(255,255,255,0.12);
+    --text:     #EEECEA;
+    --text-2:   #9A9A96;
+    --text-3:   #6B6B67;
+    --matched-bg:   #0A3328; --matched-muted: #0F6E56;
+    --duplicate-bg: #3A1212; --duplicate-muted:#791F1F;
+    --orphan-bg:    #3A2A08; --orphan-muted:  #854F0B;
+    --cross-bg:     #0A1F38; --cross-muted:   #185FA5;
+    --rounding-bg:  #1A1838; --rounding-muted:#534AB7;
+    --missing-bg:   #3A1808; --missing-muted: #993C1D;
+    --shadow:    0 1px 3px rgba(0,0,0,0.3);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+  }
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── Layout ── */
+.layout { display: flex; min-height: 100vh; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 220px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  z-index: 100;
+  padding: 0;
+}
+
+.sidebar-logo {
+  padding: 22px 20px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-logo .logo-mark {
+  width: 32px; height: 32px;
+  background: var(--text);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 10px;
+}
+.sidebar-logo .logo-mark svg { color: var(--surface); }
+.sidebar-logo .logo-title {
+  font-size: 13px; font-weight: 600; letter-spacing: -0.2px;
+  color: var(--text);
+}
+.sidebar-logo .logo-sub {
+  font-size: 10px; color: var(--text-3); margin-top: 1px;
+  font-family: var(--mono);
+}
+
+.sidebar-nav { padding: 12px 10px; flex: 1; }
+.nav-section-title {
+  font-size: 9px; text-transform: uppercase; letter-spacing: 1px;
+  color: var(--text-3); font-weight: 500;
+  padding: 8px 10px 4px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px; border-radius: var(--radius-sm);
+  font-size: 13px; color: var(--text-2);
+  cursor: pointer; transition: all 0.15s;
+  margin-bottom: 2px;
+  border: none; background: none; width: 100%; text-align: left;
+  font-family: var(--font);
+  text-decoration: none;
+}
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: var(--text); color: var(--surface); }
+.nav-item .nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
+.nav-item .nav-badge {
+  margin-left: auto;
+  font-size: 10px; font-family: var(--mono);
+  background: var(--duplicate-bg); color: var(--duplicate);
+  padding: 1px 6px; border-radius: 10px;
+}
+.nav-item.active .nav-badge { background: rgba(255,255,255,0.2); color: rgba(255,255,255,0.9); }
+
+.sidebar-footer {
+  padding: 14px 10px;
+  border-top: 1px solid var(--border);
+}
+.sidebar-status {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: var(--radius-sm);
+  background: var(--matched-bg);
+}
+.status-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--matched);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%,100%{opacity:1;transform:scale(1)}
+  50%{opacity:0.6;transform:scale(0.85)}
+}
+.status-text { font-size: 11px; color: var(--matched); font-weight: 500; }
+
+/* ── Main ── */
+.main {
+  margin-left: 220px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ── Topbar ── */
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+  height: 56px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 50;
+}
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+.topbar-title { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
+.topbar-breadcrumb { font-size: 12px; color: var(--text-3); font-family: var(--mono); }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.chip {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 500;
+  border: 1px solid var(--border-md);
+  background: var(--surface2);
+  color: var(--text-2);
+  cursor: pointer; transition: all 0.15s;
+  font-family: var(--font);
+}
+.chip:hover { background: var(--surface); color: var(--text); }
+.chip.accent { background: var(--text); color: var(--surface); border-color: transparent; }
+.chip .chip-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* ── Content ── */
+.content { padding: 24px 28px; flex: 1; }
+
+/* ── Section ── */
+.section { margin-bottom: 24px; }
+.section-header {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-3); font-weight: 500; }
+.section-action { font-size: 11px; color: var(--text-3); cursor: pointer; text-decoration: none; }
+.section-action:hover { color: var(--text); }
+
+/* ── KPI Grid ── */
+.kpi-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px 14px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.kpi-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--accent, transparent);
+  transition: opacity 0.2s;
+}
+.kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.kpi-card:hover::before { opacity: 1; }
+.kpi-val {
+  font-size: 28px; font-weight: 600; font-family: var(--mono);
+  letter-spacing: -1px; line-height: 1;
+  color: var(--kpi-color, var(--text));
+}
+.kpi-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.7px;
+  color: var(--text-3); margin-top: 8px; font-weight: 500;
+}
+.kpi-sub {
+  font-size: 11px; margin-top: 5px; font-family: var(--mono);
+  color: var(--kpi-color, var(--text-2));
+  opacity: 0.85;
+}
+.kpi-trend {
+  font-size: 10px; margin-top: 4px;
+  display: flex; align-items: center; gap: 3px;
+}
+
+/* ── Charts Row ── */
+.charts-row { display: grid; grid-template-columns: 220px 1fr 1fr; gap: 16px; }
+
+/* ── Card ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.card-head {
+  padding: 14px 16px 0;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.7px; color: var(--text-3); font-weight: 500; }
+.card-body { padding: 14px 16px 16px; }
+
+/* ── Donut ── */
+.donut-wrap { display: flex; flex-direction: column; align-items: center; }
+.donut-center-label { text-align: center; margin-top: 2px; margin-bottom: 12px; }
+.donut-center-label .dcl-val { font-size: 24px; font-weight: 600; font-family: var(--mono); }
+.donut-center-label .dcl-sub { font-size: 10px; color: var(--text-3); }
+.donut-legend { width: 100%; display: flex; flex-direction: column; gap: 5px; }
+.dl-row { display: flex; align-items: center; justify-content: space-between; }
+.dl-left { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--text-2); }
+.dl-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.dl-val { font-size: 11px; font-family: var(--mono); font-weight: 500; }
+
+/* ── Bar chart ── */
+.h-bars { display: flex; flex-direction: column; gap: 9px; }
+.hbar-row { display: flex; align-items: center; gap: 10px; }
+.hbar-label { font-size: 11px; font-family: var(--mono); width: 56px; text-align: right; color: var(--text-3); flex-shrink: 0; }
+.hbar-track { flex: 1; height: 22px; background: var(--surface2); border-radius: 5px; overflow: hidden; position: relative; }
+.hbar-fill {
+  height: 100%; border-radius: 5px;
+  display: flex; align-items: center; justify-content: flex-end;
+  padding-right: 7px;
+  transition: width 1s cubic-bezier(.4,0,.2,1);
+}
+.hbar-fill span { font-size: 10px; font-family: var(--mono); color: #fff; font-weight: 500; white-space: nowrap; }
+.hbar-overflow { font-size: 10px; font-family: var(--mono); color: var(--text-3); margin-left: 6px; min-width: 60px; }
+
+/* ── Timeline chart ── */
+.timeline-chart { position: relative; }
+.tl-axis { display: flex; justify-content: space-between; font-size: 9px; font-family: var(--mono); color: var(--text-3); margin-bottom: 6px; }
+.tl-lanes { display: flex; flex-direction: column; gap: 4px; }
+.tl-lane { height: 18px; background: var(--surface2); border-radius: 4px; position: relative; }
+.tl-event {
+  position: absolute; top: 1px; height: 16px; border-radius: 4px;
+  display: flex; align-items: center; padding: 0 5px;
+  font-size: 9px; font-family: var(--mono); font-weight: 500;
+  white-space: nowrap; overflow: hidden;
+  cursor: pointer; transition: opacity 0.15s;
+}
+.tl-event:hover { opacity: 0.85; }
+.tl-lane-label { font-size: 10px; color: var(--text-3); margin-top: 3px; font-family: var(--mono); }
+
+/* ── Bank bars ── */
+.bank-bars { display: flex; flex-direction: column; gap: 7px; }
+.bb-row { display: flex; align-items: center; gap: 8px; }
+.bb-name { font-size: 11px; font-family: var(--mono); width: 44px; color: var(--text-2); }
+.bb-track { flex: 1; height: 16px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+.bb-fill { height: 100%; border-radius: 4px; transition: width 1s cubic-bezier(.4,0,.2,1); }
+.bb-count { font-size: 10px; font-family: var(--mono); color: var(--text-3); width: 20px; text-align: right; }
+
+/* ── Anomaly list ── */
+.anomaly-list { display: flex; flex-direction: column; gap: 8px; }
+.anomaly-row {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 11px 13px;
+  display: flex; align-items: flex-start; gap: 10px;
+  cursor: pointer; transition: all 0.15s;
+  position: relative;
+}
+.anomaly-row::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  border-radius: 3px 0 0 3px;
+  background: var(--row-accent, transparent);
+}
+.anomaly-row:hover { background: var(--surface2); transform: translateX(2px); }
+.a-tag {
+  font-size: 9px; font-weight: 600; padding: 3px 8px;
+  border-radius: 10px; white-space: nowrap; flex-shrink: 0;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.a-meta { flex: 1; min-width: 0; }
+.a-id { font-size: 12px; font-weight: 500; font-family: var(--mono); }
+.a-desc { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+.a-bank { font-size: 10px; color: var(--text-3); margin-top: 3px; font-family: var(--mono); }
+.a-right { text-align: right; flex-shrink: 0; }
+.a-amt { font-size: 12px; font-family: var(--mono); font-weight: 500; }
+.a-delta { font-size: 10px; color: var(--text-3); margin-top: 3px; font-family: var(--mono); }
+
+/* ── Table ── */
+.table-wrap { overflow: auto; }
+table.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.data-table th {
+  font-size: 9px; text-transform: uppercase; letter-spacing: 0.7px;
+  font-weight: 600; color: var(--text-3);
+  padding: 8px 12px; text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.data-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono); vertical-align: middle;
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tbody tr { transition: background 0.1s; cursor: pointer; }
+.data-table tbody tr:hover td { background: var(--surface2); }
+.pill {
+  font-size: 9px; font-weight: 600; padding: 3px 8px;
+  border-radius: 10px; white-space: nowrap;
+  text-transform: uppercase; letter-spacing: 0.4px;
+  display: inline-block;
+}
+.td-id { color: var(--text); }
+.td-customer { color: var(--text-2); font-family: var(--font); font-size: 12px; }
+.td-bank { color: var(--text-3); }
+.td-amount { font-weight: 500; }
+
+/* ── Tab bar ── */
+.tab-bar {
+  display: flex; gap: 2px;
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+}
+.tab-btn {
+  font-size: 11px; padding: 5px 12px;
+  border-radius: 6px; cursor: pointer;
+  color: var(--text-2); border: none;
+  background: transparent; font-family: var(--font);
+  transition: all 0.15s; font-weight: 400;
+}
+.tab-btn.active {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 500;
+  box-shadow: var(--shadow);
+}
+
+/* ── Stats ── */
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.stat-item {
+  background: var(--surface2);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.stat-item .s-val { font-size: 16px; font-weight: 600; font-family: var(--mono); }
+.stat-item .s-lbl { font-size: 10px; color: var(--text-3); margin-top: 3px; }
+
+/* ── Summary footer ── */
+.summary-strip {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 12px 28px;
+  display: flex; gap: 24px; align-items: center;
+}
+.ss-item { display: flex; align-items: center; gap: 8px; }
+.ss-dot { width: 8px; height: 8px; border-radius: 50%; }
+.ss-text { font-size: 11px; color: var(--text-2); }
+.ss-val { font-size: 11px; font-family: var(--mono); font-weight: 500; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-md); border-radius: 10px; }
+
+/* ── Main grid bottom ── */
+.bottom-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 16px; }
+.full-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+
+/* ── Search ── */
+.search-bar {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 6px 12px;
+  margin-bottom: 12px;
+}
+.search-bar input {
+  border: none; background: transparent; font-size: 12px;
+  color: var(--text); flex: 1; font-family: var(--font);
+  outline: none;
+}
+.search-bar input::placeholder { color: var(--text-3); }
+
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
+          <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity="0.5"/>
+          <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity="0.5"/>
+          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white"/>
+        </svg>
+      </div>
+      <div class="logo-title">ReconIQ</div>
+      <div class="logo-sub">Payment Reconciliation</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-title">Overview</div>
+      <button class="nav-item active" onclick="showSection('dashboard')">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <rect x="1.5" y="1.5" width="5" height="5" rx="1"/><rect x="9.5" y="1.5" width="5" height="5" rx="1"/>
+          <rect x="1.5" y="9.5" width="5" height="5" rx="1"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/>
+        </svg>
+        Dashboard
+      </button>
+      <button class="nav-item" onclick="showSection('transactions')">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <path d="M2 4h12M2 8h8M2 12h10"/>
+        </svg>
+        Transactions
+      </button>
+
+      <div class="nav-section-title" style="margin-top:8px">Anomalies</div>
+      <button class="nav-item" onclick="showSection('anomalies')">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <path d="M8 2L14 13H2L8 2z"/><path d="M8 7v3M8 11.5v.5"/>
+        </svg>
+        All anomalies
+        <span class="nav-badge">15</span>
+      </button>
+      <button class="nav-item" onclick="filterAndShow('DUPLICATE')">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <rect x="1" y="4" width="10" height="10" rx="1.5"/><path d="M5 4V3a1 1 0 011-1h8a1 1 0 011 1v9a1 1 0 01-1 1h-1"/>
+        </svg>
+        Duplicates
+        <span class="nav-badge">3</span>
+      </button>
+      <button class="nav-item" onclick="filterAndShow('MISSING_SETTLEMENT')">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <circle cx="8" cy="8" r="6"/><path d="M8 5v3M8 10.5v.5"/>
+        </svg>
+        Missing
+        <span class="nav-badge">3</span>
+      </button>
+      <button class="nav-item" onclick="filterAndShow('ORPHAN_REFUND')">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <path d="M4 12L8 4l4 8"/><path d="M6 9h4"/>
+        </svg>
+        Orphan refunds
+        <span class="nav-badge">3</span>
+      </button>
+
+      <div class="nav-section-title" style="margin-top:8px">Reports</div>
+      <button class="nav-item" onclick="showSection('reports')">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <rect x="2" y="1.5" width="12" height="13" rx="1.5"/><path d="M5 5h6M5 8h6M5 11h4"/>
+        </svg>
+        Summary report
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-status">
+        <div class="status-dot"></div>
+        <div class="status-text">Engine active · Jan 2024</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="topbar-title" id="page-title">Dashboard</span>
+        <span class="topbar-breadcrumb">/ January 2024 / 80 transactions</span>
+      </div>
+      <div class="topbar-right">
+        <button class="chip" id="btn-export" onclick="exportCSV()">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <path d="M6 1v7M3 5l3 3 3-3M1 9v1.5A.5.5 0 001.5 11h9a.5.5 0 00.5-.5V9"/>
+          </svg>
+          Export CSV
+        </button>
+        <button class="chip accent" onclick="refreshData()">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <path d="M10 2A5 5 0 102 10"/><path d="M10 5V2H7"/>
+          </svg>
+          Refresh
+        </button>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <div class="content">
+
+      <!-- ══ DASHBOARD SECTION ══ -->
+      <div id="section-dashboard">
+        <!-- KPIs -->
+        <div class="section">
+          <div class="section-header">
+            <span class="section-title">Key metrics</span>
+            <span class="section-action">Jan 1 – Jan 31, 2024</span>
+          </div>
+          <div class="kpi-grid">
+            <div class="kpi-card" style="--accent:var(--matched);--kpi-color:var(--matched)" onclick="showSection('transactions')">
+              <div class="kpi-val">65</div>
+              <div class="kpi-label">Matched</div>
+              <div class="kpi-sub">81.25% match rate</div>
+            </div>
+            <div class="kpi-card" style="--accent:var(--duplicate);--kpi-color:var(--duplicate)" onclick="filterAndShow('DUPLICATE')">
+              <div class="kpi-val">3</div>
+              <div class="kpi-label">Duplicates</div>
+              <div class="kpi-sub">₹15,350 over-settled</div>
+            </div>
+            <div class="kpi-card" style="--accent:var(--orphan);--kpi-color:var(--orphan)" onclick="filterAndShow('ORPHAN_REFUND')">
+              <div class="kpi-val">3</div>
+              <div class="kpi-label">Orphan refunds</div>
+              <div class="kpi-sub">₹674 unmatched</div>
+            </div>
+            <div class="kpi-card" style="--accent:var(--cross);--kpi-color:var(--cross)" onclick="filterAndShow('CROSS_MONTH')">
+              <div class="kpi-val">3</div>
+              <div class="kpi-label">Cross-month</div>
+              <div class="kpi-sub">₹22,925 delayed</div>
+            </div>
+            <div class="kpi-card" style="--accent:var(--missing);--kpi-color:var(--missing)" onclick="filterAndShow('MISSING_SETTLEMENT')">
+              <div class="kpi-val">3</div>
+              <div class="kpi-label">Missing</div>
+              <div class="kpi-sub">₹19,999 unsettled</div>
+            </div>
+            <div class="kpi-card" style="--accent:var(--rounding);--kpi-color:var(--rounding)" onclick="filterAndShow('ROUNDING_DIFF')">
+              <div class="kpi-val">3</div>
+              <div class="kpi-label">Rounding diffs</div>
+              <div class="kpi-sub">₹0.015 total delta</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts row -->
+        <div class="charts-row section">
+          <!-- Donut -->
+          <div class="card">
+            <div class="card-head"><span class="card-title">Gap type breakdown</span></div>
+            <div class="card-body donut-wrap">
+              <div style="position:relative;width:130px;height:130px;margin-bottom:10px">
+                <canvas id="donutChart"></canvas>
+              </div>
+              <div class="donut-legend">
+                <div class="dl-row"><div class="dl-left"><span class="dl-dot" style="background:var(--matched)"></span>Matched</div><div class="dl-val">65</div></div>
+                <div class="dl-row"><div class="dl-left"><span class="dl-dot" style="background:var(--duplicate)"></span>Duplicate</div><div class="dl-val">3</div></div>
+                <div class="dl-row"><div class="dl-left"><span class="dl-dot" style="background:var(--orphan)"></span>Orphan refund</div><div class="dl-val">3</div></div>
+                <div class="dl-row"><div class="dl-left"><span class="dl-dot" style="background:var(--cross)"></span>Cross-month</div><div class="dl-val">3</div></div>
+                <div class="dl-row"><div class="dl-left"><span class="dl-dot" style="background:var(--missing)"></span>Missing</div><div class="dl-val">3</div></div>
+                <div class="dl-row"><div class="dl-left"><span class="dl-dot" style="background:var(--rounding)"></span>Rounding diff</div><div class="dl-val">3</div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Amount bar chart -->
+          <div class="card">
+            <div class="card-head"><span class="card-title">Transaction volume · daily (INR)</span></div>
+            <div class="card-body">
+              <div style="position:relative;height:180px">
+                <canvas id="volumeChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bank + stats -->
+          <div class="card">
+            <div class="card-head"><span class="card-title">Settlements by bank</span></div>
+            <div class="card-body">
+              <div class="bank-bars">
+                <div class="bb-row"><div class="bb-name">HDFC</div><div class="bb-track"><div class="bb-fill" style="width:100%;background:var(--matched);opacity:0.75"></div></div><div class="bb-count">28</div></div>
+                <div class="bb-row"><div class="bb-name">AXIS</div><div class="bb-track"><div class="bb-fill" style="width:61%;background:var(--matched);opacity:0.75"></div></div><div class="bb-count">17</div></div>
+                <div class="bb-row"><div class="bb-name">ICICI</div><div class="bb-track"><div class="bb-fill" style="width:57%;background:var(--matched);opacity:0.75"></div></div><div class="bb-count">16</div></div>
+                <div class="bb-row"><div class="bb-name">SBI</div><div class="bb-track"><div class="bb-fill" style="width:43%;background:var(--matched);opacity:0.75"></div></div><div class="bb-count">12</div></div>
+                <div class="bb-row"><div class="bb-name">KOTAK</div><div class="bb-track"><div class="bb-fill" style="width:14%;background:var(--matched);opacity:0.75"></div></div><div class="bb-count">4</div></div>
+              </div>
+              <div class="stat-grid">
+                <div class="stat-item"><div class="s-val">77</div><div class="s-lbl">Total settlements</div></div>
+                <div class="stat-item"><div class="s-val">₹4.02L</div><div class="s-lbl">Total settled</div></div>
+                <div class="stat-item"><div class="s-val" style="color:var(--duplicate)">₹35.3K</div><div class="s-lbl">Net delta at risk</div></div>
+                <div class="stat-item"><div class="s-val">₹5,229</div><div class="s-lbl">Avg per txn</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom grid -->
+        <div class="bottom-grid section">
+          <!-- Anomaly list -->
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title">Anomalies requiring action</span>
+              <button class="chip" onclick="showSection('anomalies')" style="font-size:10px;padding:4px 9px">View all →</button>
+            </div>
+            <div class="card-body">
+              <div class="anomaly-list" id="dash-anomaly-list"></div>
+            </div>
+          </div>
+
+          <!-- Amount breakdown -->
+          <div class="card">
+            <div class="card-head"><span class="card-title">Amount by gap type (INR)</span></div>
+            <div class="card-body">
+              <div class="h-bars" id="amount-bars"></div>
+              <div class="stat-grid" style="margin-top:16px">
+                <div class="stat-item"><div class="s-val" style="color:var(--matched)">₹3.33L</div><div class="s-lbl">Matched amount</div></div>
+                <div class="stat-item"><div class="s-val" style="color:var(--duplicate)">₹15.3K</div><div class="s-lbl">Duplicate excess</div></div>
+                <div class="stat-item"><div class="s-val" style="color:var(--missing)">₹19.9K</div><div class="s-lbl">Missing settlement</div></div>
+                <div class="stat-item"><div class="s-val" style="color:var(--rounding)">₹0.015</div><div class="s-lbl">Rounding delta</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ TRANSACTIONS SECTION ══ -->
+      <div id="section-transactions" style="display:none">
+        <div class="section">
+          <div class="section-header">
+            <span class="section-title">All transactions</span>
+            <div style="display:flex;gap:8px;align-items:center">
+              <div class="tab-bar" id="txn-tabs">
+                <button class="tab-btn active" onclick="filterTxnTable('all',this)">All (80)</button>
+                <button class="tab-btn" onclick="filterTxnTable('MATCHED',this)">Matched (65)</button>
+                <button class="tab-btn" onclick="filterTxnTable('issues',this)">Issues (15)</button>
+              </div>
+            </div>
+          </div>
+          <div class="search-bar">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="5.5" cy="5.5" r="4"/><path d="M9 9l2.5 2.5"/></svg>
+            <input type="text" placeholder="Search by ID, customer, bank..." id="txn-search" oninput="filterTxnSearch()"/>
+          </div>
+          <div class="card">
+            <div class="table-wrap" style="max-height:520px;overflow-y:auto">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>TXN ID</th>
+                    <th>Customer</th>
+                    <th>Date</th>
+                    <th>Amount (INR)</th>
+                    <th>Type</th>
+                    <th>Bank</th>
+                    <th>Status</th>
+                    <th>Settlement ID</th>
+                  </tr>
+                </thead>
+                <tbody id="txn-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ ANOMALIES SECTION ══ -->
+      <div id="section-anomalies" style="display:none">
+        <div class="section">
+          <div class="section-header">
+            <span class="section-title">Anomaly details</span>
+            <div class="tab-bar" id="anomaly-tabs">
+              <button class="tab-btn active" onclick="filterAnomalies('all',this)">All (15)</button>
+              <button class="tab-btn" onclick="filterAnomalies('DUPLICATE',this)">Duplicate (3)</button>
+              <button class="tab-btn" onclick="filterAnomalies('ORPHAN_REFUND',this)">Orphan (3)</button>
+              <button class="tab-btn" onclick="filterAnomalies('CROSS_MONTH',this)">Cross-mo. (3)</button>
+              <button class="tab-btn" onclick="filterAnomalies('ROUNDING_DIFF',this)">Rounding (3)</button>
+              <button class="tab-btn" onclick="filterAnomalies('MISSING_SETTLEMENT',this)">Missing (3)</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="table-wrap" style="max-height:520px;overflow-y:auto">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>TXN ID</th>
+                    <th>Date</th>
+                    <th>Settlement date</th>
+                    <th>Txn amount</th>
+                    <th>Settled amount</th>
+                    <th>Delta (INR)</th>
+                    <th>Gap type</th>
+                    <th>Bank ref</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="anomaly-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ REPORTS SECTION ══ -->
+      <div id="section-reports" style="display:none">
+        <div class="section">
+          <div class="section-header">
+            <span class="section-title">Summary report · January 2024</span>
+            <button class="chip" onclick="exportCSV()" style="font-size:10px;padding:5px 10px">Download CSV ↓</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div class="card">
+              <div class="card-head"><span class="card-title">Gap type summary</span></div>
+              <div class="card-body">
+                <table class="data-table">
+                  <thead>
+                    <tr><th>Gap type</th><th>Count</th><th>Txn amount</th><th>Settled</th><th>Net delta</th><th>Action</th></tr>
+                  </thead>
+                  <tbody id="summary-body"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head"><span class="card-title">Match rate trend</span></div>
+              <div class="card-body">
+                <div style="position:relative;height:220px">
+                  <canvas id="trendChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+
+    <!-- Footer strip -->
+    <div class="summary-strip">
+      <div class="ss-item"><div class="ss-dot" style="background:var(--matched)"></div><span class="ss-text">Matched:</span><span class="ss-val">₹3,33,622</span></div>
+      <div class="ss-item"><div class="ss-dot" style="background:var(--duplicate)"></div><span class="ss-text">Duplicate excess:</span><span class="ss-val" style="color:var(--duplicate)">₹15,350</span></div>
+      <div class="ss-item"><div class="ss-dot" style="background:var(--missing)"></div><span class="ss-text">Missing:</span><span class="ss-val" style="color:var(--missing)">₹19,999</span></div>
+      <div class="ss-item"><div class="ss-dot" style="background:var(--orphan)"></div><span class="ss-text">Orphan refunds:</span><span class="ss-val" style="color:var(--orphan)">-₹674</span></div>
+      <div style="margin-left:auto;font-size:11px;color:var(--text-3);font-family:var(--mono)">Last run: Jan 31, 2024 23:59</div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ────────── DATA ────────── */
+const TYPE_META = {
+  MATCHED:            {label:'Matched',       color:'var(--matched)',   bg:'var(--matched-bg)'},
+  DUPLICATE:          {label:'Duplicate',     color:'var(--duplicate)', bg:'var(--duplicate-bg)'},
+  ORPHAN_REFUND:      {label:'Orphan refund', color:'var(--orphan)',    bg:'var(--orphan-bg)'},
+  CROSS_MONTH:        {label:'Cross-month',   color:'var(--cross)',     bg:'var(--cross-bg)'},
+  ROUNDING_DIFF:      {label:'Rounding diff', color:'var(--rounding)',  bg:'var(--rounding-bg)'},
+  MISSING_SETTLEMENT: {label:'Missing',       color:'var(--missing)',   bg:'var(--missing-bg)'},
+};
+
+const BANKS = ['HDFC','ICICI','AXIS','SBI','KOTAK','HDFC','AXIS','ICICI','SBI','HDFC','ICICI','AXIS','SBI','HDFC','ICICI','HDFC','AXIS','ICICI','SBI','HDFC','ICICI','AXIS','SBI','HDFC','ICICI','HDFC','AXIS','ICICI','SBI','HDFC','ICICI','AXIS','SBI','HDFC','ICICI','HDFC','AXIS','ICICI','SBI','HDFC','ICICI','AXIS','SBI','HDFC','ICICI','HDFC','AXIS','ICICI','SBI','HDFC','ICICI','AXIS','SBI','HDFC','ICICI','HDFC','AXIS','ICICI','SBI','HDFC','ICICI','AXIS','SBI','HDFC','ICICI','HDFC','AXIS','ICICI','SBI','HDFC','ICICI','AXIS','SBI','HDFC','ICICI','HDFC','AXIS','SBI','HDFC'];
+
+const CUSTOMERS = ['Arjun Mehta','Priya Sharma','Rohit Desai','Sneha Iyer','Kavya Nair','Vikram Pillai','Ananya Roy','Suresh Patil','Divya Krishnan','Amit Bose','Meera Joshi','Rahul Gupta','Pooja Malhotra','Karan Shah','Nisha Verma','Akash Reddy','Sonal Mishra','Dev Agarwal','Faiz Khan','Tanya Singh','Ravi Kumar','Deepa Nair','Sachin Rao','Monika Sethi','Nitin Jain','Aisha Beg','Girish Pandey','Lakshmi Subramanian','Harish Chandra','Sunita Verma'];
+
+const AMOUNTS = [4200,12750,899.5,3350,99.99,5600,18000,2100.75,7400,320,9875,1450,6750,22000,540.25,3200,8100,11200,750,1200,3500,6800,2400,15000,4800,9200,1750,5500,13500,800,2950,7200,11800,3800,16500,4100,920,6200,18500,2800,3600,9400,1600,12300,5100,7800,4400,16000,2200,8700,3100,11000,5900,4700,14500,2600,7100,19500,3300,8400,1900,5700,22500,4000,9100,15800,2100,6500,11300,3700,8200,4600,17000,2400,7900,4900,13200,2700,5300,499];
+
+const TYPES_SEQ = ['MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','DUPLICATE','MATCHED','MATCHED','MATCHED','MATCHED','ORPHAN_REFUND','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','CROSS_MONTH','MATCHED','ROUNDING_DIFF','MATCHED','MISSING_SETTLEMENT','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','CROSS_MONTH','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','ROUNDING_DIFF','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','MISSING_SETTLEMENT','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','CROSS_MONTH','MATCHED','ROUNDING_DIFF','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','MISSING_SETTLEMENT','MATCHED','MATCHED','MATCHED','MATCHED','MATCHED','ORPHAN_REFUND','MATCHED','DUPLICATE','DUPLICATE'];
+
+const DATES = Array.from({length:80},(_,i)=>{const d=new Date(2024,0,3+Math.floor(i*0.38));return d.toISOString().slice(0,10);});
+
+const transactions = Array.from({length:80},(_,i)=>{
+  const type=TYPES_SEQ[i]||'MATCHED';
+  const isRefund = type==='ORPHAN_REFUND';
+  const cust = CUSTOMERS[i%CUSTOMERS.length];
+  const bank = BANKS[i]||'HDFC';
+  const amt = isRefund ? -(Math.round(AMOUNTS[i]*0.12*100)/100) : AMOUNTS[i];
+  const settled = type==='MISSING_SETTLEMENT'?null : type==='DUPLICATE'?amt*2 : type==='ORPHAN_REFUND'?null : amt;
+  const delta = type==='DUPLICATE'?amt : type==='ROUNDING_DIFF'?0.005 : type==='MISSING_SETTLEMENT'?amt : 0;
+  const txnId = isRefund ? `REF-${1000+i}` : `TXN-${1000+i}`;
+  const setId = (type!=='ORPHAN_REFUND'&&type!=='MISSING_SETTLEMENT')?`SET-${2000+i}`:null;
+  const bankRef = setId ? `${bank}-${8000+i}` : null;
+  const sDate = setId ? new Date(new Date(DATES[i]).getTime()+86400000*2).toISOString().slice(0,10) : null;
+  return {txnId,customer:cust,date:DATES[i],amount:amt,settled,delta,type,bank,setId,bankRef,sDate};
+});
+
+/* ────────── NAV ────────── */
+const SECTIONS = ['dashboard','transactions','anomalies','reports'];
+let currentAnomalyFilter = 'all';
+let currentTxnFilter = 'all';
+
+function showSection(id){
+  SECTIONS.forEach(s=>{
+    const el=document.getElementById('section-'+s);
+    if(el) el.style.display = s===id?'':'none';
+  });
+  document.getElementById('page-title').textContent = id.charAt(0).toUpperCase()+id.slice(1);
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+}
+
+function filterAndShow(type){
+  showSection('anomalies');
+  filterAnomalies(type, document.querySelector(`#anomaly-tabs .tab-btn[data-type="${type}"]`)||document.querySelectorAll('#anomaly-tabs .tab-btn')[0]);
+}
+
+/* ────────── CHARTS ────────── */
+function isDark(){ return window.matchMedia('(prefers-color-scheme:dark)').matches; }
+
+window.addEventListener('DOMContentLoaded',()=>{
+  buildDonut();
+  buildVolume();
+  buildTrend();
+  buildDashAnomalies();
+  buildAmountBars();
+  buildTxnTable('all');
+  buildAnomalyTable('all');
+  buildSummaryTable();
+});
+
+function buildDonut(){
+  const dark = isDark();
+  new Chart(document.getElementById('donutChart'),{
+    type:'doughnut',
+    data:{
+      labels:['Matched','Duplicate','Orphan','Cross-month','Missing','Rounding'],
+      datasets:[{
+        data:[65,3,3,3,3,3],
+        backgroundColor:['#1D9E75','#E24B4A','#BA7517','#378ADD','#D85A30','#7F77DD'],
+        borderWidth:0,
+        spacing:2,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      cutout:'72%',
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.parsed}`}}},
+    }
+  });
+}
+
+function buildVolume(){
+  const dark = isDark();
+  const labels = ['Jan 1','Jan 5','Jan 9','Jan 13','Jan 17','Jan 21','Jan 25','Jan 29'];
+  new Chart(document.getElementById('volumeChart'),{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'Matched',data:[18200,24500,31000,19800,42000,28500,37000,43500],backgroundColor:'#1D9E7566',borderRadius:4},
+        {label:'Anomaly',data:[3200,0,5500,0,9875,3200,22000,11200],backgroundColor:'#E24B4A66',borderRadius:4},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}},
+      scales:{
+        x:{grid:{display:false},ticks:{color:dark?'#6B6B67':'#9A9A96',font:{size:10,family:"'DM Mono',monospace"}},stacked:true},
+        y:{grid:{color:dark?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.05)'},ticks:{color:dark?'#6B6B67':'#9A9A96',font:{size:10,family:"'DM Mono',monospace"},callback:v=>'₹'+(v/1000).toFixed(0)+'K'},stacked:true},
+      }
+    }
+  });
+}
+
+function buildTrend(){
+  const dark = isDark();
+  new Chart(document.getElementById('trendChart'),{
+    type:'line',
+    data:{
+      labels:['Week 1','Week 2','Week 3','Week 4'],
+      datasets:[{
+        label:'Match rate %',
+        data:[78,83,81,85],
+        borderColor:'#1D9E75',backgroundColor:'#1D9E7515',
+        fill:true,tension:0.4,pointBackgroundColor:'#1D9E75',pointRadius:4,
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{display:false},ticks:{color:dark?'#6B6B67':'#9A9A96',font:{size:10,family:"'DM Mono',monospace"}}},
+        y:{min:70,max:100,grid:{color:dark?'rgba(255,255,255,0.05)':'rgba(0,0,0,0.05)'},ticks:{color:dark?'#6B6B67':'#9A9A96',font:{size:10,family:"'DM Mono',monospace"},callback:v=>v+'%'}},
+      }
+    }
+  });
+}
+
+/* ────────── DASHBOARD ANOMALY LIST ────────── */
+const DASH_ANOMALIES = [
+  {id:'TXN-1016 ×3',type:'DUPLICATE',desc:'Settled twice via duplicate bank references',bank:'KOTAK-5501|5502',amt:'₹15,350',delta:'+₹15,350 excess'},
+  {id:'REF-xxx ×3',type:'ORPHAN_REFUND',desc:'Refund with no matching original transaction',bank:'Multiple',amt:'-₹674',delta:'Unmatched'},
+  {id:'TXN-cross ×3',type:'CROSS_MONTH',desc:'Recorded Jan 31 — settled Feb 1',bank:'HDFC-8901',amt:'₹22,925',delta:'Period mismatch'},
+  {id:'TXN-miss ×3',type:'MISSING_SETTLEMENT',desc:'No bank settlement found in Jan 2024',bank:'—',amt:'₹19,999',delta:'Unsettled'},
+  {id:'TXN-round ×3',type:'ROUNDING_DIFF',desc:'Float precision loss: 99.995→100.00',bank:'HDFC-8851',amt:'₹30,800',delta:'₹0.015 delta'},
+];
+
+function buildDashAnomalies(){
+  const el=document.getElementById('dash-anomaly-list');
+  el.innerHTML='';
+  DASH_ANOMALIES.forEach(a=>{
+    const m=TYPE_META[a.type];
+    const div=document.createElement('div');
+    div.className='anomaly-row';
+    div.style.cssText=`--row-accent:${m.color}`;
+    div.onclick=()=>filterAndShow(a.type);
+    div.innerHTML=`
+      <span class="a-tag pill" style="background:${m.bg};color:${m.color}">${m.label}</span>
+      <div class="a-meta">
+        <div class="a-id">${a.id}</div>
+        <div class="a-desc">${a.desc}</div>
+        <div class="a-bank">${a.bank}</div>
+      </div>
+      <div class="a-right">
+        <div class="a-amt" style="color:${m.color}">${a.amt}</div>
+        <div class="a-delta">${a.delta}</div>
+      </div>
+    `;
+    el.appendChild(div);
+  });
+}
+
+/* ────────── AMOUNT BARS ────────── */
+function buildAmountBars(){
+  const items=[
+    {label:'Matched',amt:333622,color:'var(--matched)'},
+    {label:'Cross-mo.',amt:22925,color:'var(--cross)'},
+    {label:'Missing',amt:19999,color:'var(--missing)'},
+    {label:'Rounding',amt:30800,color:'var(--rounding)'},
+    {label:'Duplicate',amt:15350,color:'var(--duplicate)'},
+    {label:'Orphan',amt:674,color:'var(--orphan)'},
+  ];
+  const max=333622;
+  const el=document.getElementById('amount-bars');
+  el.innerHTML='';
+  items.forEach(({label,amt,color})=>{
+    const pct=Math.max((amt/max)*100,0.5);
+    const showInner=pct>20;
+    el.innerHTML+=`
+      <div class="hbar-row">
+        <div class="hbar-label">${label}</div>
+        <div class="hbar-track">
+          <div class="hbar-fill" style="width:${pct}%;background:${color}">
+            ${showInner?`<span>₹${amt.toLocaleString('en-IN')}</span>`:''}
+          </div>
+        </div>
+        ${!showInner?`<span class="hbar-overflow">₹${amt.toLocaleString('en-IN')}</span>`:''}
+      </div>`;
+  });
+}
+
+/* ────────── TXN TABLE ────────── */
+function buildTxnTable(filter){
+  currentTxnFilter=filter;
+  const body=document.getElementById('txn-table-body');
+  const search=(document.getElementById('txn-search')||{}).value||'';
+  const rows=transactions.filter(t=>{
+    if(filter==='MATCHED') return t.type==='MATCHED';
+    if(filter==='issues') return t.type!=='MATCHED';
+    return true;
+  }).filter(t=>{
+    if(!search) return true;
+    const q=search.toLowerCase();
+    return t.txnId.toLowerCase().includes(q)||t.customer.toLowerCase().includes(q)||(t.bank||'').toLowerCase().includes(q)||(t.setId||'').toLowerCase().includes(q);
+  });
+  body.innerHTML=rows.map(t=>{
+    const m=TYPE_META[t.type];
+    return `<tr onclick="alert('TXN: ${t.txnId}\\nCustomer: ${t.customer}\\nType: ${m.label}\\nAmount: ₹${Math.abs(t.amount).toLocaleString(\"en-IN\")}')">
+      <td class="td-id">${t.txnId}</td>
+      <td class="td-customer">${t.customer}</td>
+      <td>${t.date}</td>
+      <td class="td-amount" style="color:${t.amount<0?'var(--duplicate)':'inherit'}">${t.amount<0?'-':''}₹${Math.abs(t.amount).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+      <td>${t.type==='MATCHED'?'CREDIT':t.type==='ORPHAN_REFUND'?'REFUND':'CREDIT'}</td>
+      <td class="td-bank">${t.bank}</td>
+      <td><span class="pill" style="background:${m.bg};color:${m.color}">${m.label}</span></td>
+      <td class="td-bank">${t.setId||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function filterTxnTable(filter,el){
+  document.querySelectorAll('#txn-tabs .tab-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  buildTxnTable(filter);
+}
+function filterTxnSearch(){ buildTxnTable(currentTxnFilter); }
+
+/* ────────── ANOMALY TABLE ────────── */
+function buildAnomalyTable(filter){
+  currentAnomalyFilter=filter;
+  const body=document.getElementById('anomaly-table-body');
+  const rows=transactions.filter(t=>{
+    if(filter==='all') return t.type!=='MATCHED';
+    return t.type===filter;
+  });
+  const ACTIONS={
+    DUPLICATE:'Raise debit note',
+    ORPHAN_REFUND:'Investigate origin',
+    CROSS_MONTH:'Flag for reconciliation',
+    ROUNDING_DIFF:'Auto-approve if <₹1',
+    MISSING_SETTLEMENT:'Chase bank',
+  };
+  body.innerHTML=rows.map(t=>{
+    const m=TYPE_META[t.type];
+    const action=ACTIONS[t.type]||'Review';
+    return `<tr>
+      <td class="td-id">${t.txnId}</td>
+      <td>${t.date}</td>
+      <td>${t.sDate||'—'}</td>
+      <td>₹${Math.abs(t.amount).toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
+      <td>${t.settled!=null?'₹'+t.settled.toLocaleString('en-IN',{minimumFractionDigits:2}):'—'}</td>
+      <td style="color:${t.delta>0?'var(--duplicate)':'var(--text-2)'}; font-weight:${t.delta>0?500:400}">
+        ${t.delta>0?'+ ':''}${t.delta!=null?t.delta.toLocaleString('en-IN',{minimumFractionDigits:3}):'—'}
+      </td>
+      <td><span class="pill" style="background:${m.bg};color:${m.color}">${m.label}</span></td>
+      <td class="td-bank">${t.bankRef||'—'}</td>
+      <td><button onclick="alert('Action: ${action}\\nTXN: ${t.txnId}')" class="chip" style="font-size:10px;padding:4px 8px">${action} →</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function filterAnomalies(filter,el){
+  document.querySelectorAll('#anomaly-tabs .tab-btn').forEach(b=>b.classList.remove('active'));
+  if(el) el.classList.add('active');
+  buildAnomalyTable(filter);
+}
+
+/* ────────── SUMMARY TABLE ────────── */
+function buildSummaryTable(){
+  const summaryData=[
+    {type:'MATCHED',count:65,txnAmt:333621.83,settledAmt:333621.83,delta:0,action:false},
+    {type:'DUPLICATE',count:3,txnAmt:15349.75,settledAmt:30699.5,delta:15349.75,action:true},
+    {type:'ORPHAN_REFUND',count:3,txnAmt:-674.36,settledAmt:0,delta:0,action:true},
+    {type:'CROSS_MONTH',count:3,txnAmt:22924.5,settledAmt:22924.5,delta:0,action:true},
+    {type:'ROUNDING_DIFF',count:3,txnAmt:30800,settledAmt:30800,delta:0.015,action:true},
+    {type:'MISSING_SETTLEMENT',count:3,txnAmt:19999,settledAmt:0,delta:19999,action:true},
+  ];
+  const body=document.getElementById('summary-body');
+  body.innerHTML=summaryData.map(r=>{
+    const m=TYPE_META[r.type];
+    return `<tr>
+      <td><span class="pill" style="background:${m.bg};color:${m.color}">${m.label}</span></td>
+      <td>${r.count}</td>
+      <td>₹${r.txnAmt.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
+      <td>₹${r.settledAmt.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
+      <td style="color:${r.delta>0?'var(--duplicate)':'var(--text-2)'};font-weight:${r.delta>0?500:400}">${r.delta>0?'+'+''}${r.delta.toLocaleString('en-IN',{minimumFractionDigits:3})}</td>
+      <td>${r.action?'<span style="color:var(--duplicate);font-size:11px;font-weight:500;">⚠ Required</span>':'<span style="color:var(--matched);font-size:11px">✓ None</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ────────── EXPORT ────────── */
+function exportCSV(){
+  const rows=[['TXN ID','Customer','Date','Amount (INR)','Type','Bank','Settlement ID','Settlement Date','Gap Type']];
+  transactions.forEach(t=>{
+    rows.push([t.txnId,t.customer,t.date,t.amount,t.type==='ORPHAN_REFUND'?'REFUND':'CREDIT',t.bank,t.setId||'',t.sDate||'',t.type]);
+  });
+  const csv=rows.map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='reconciliation_jan2024.csv';
+  a.click();
+}
+
+function refreshData(){
+  const btn=document.getElementById('btn-export').nextElementSibling;
+  btn.textContent='Refreshing...';
+  setTimeout(()=>{ btn.innerHTML=`<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M10 2A5 5 0 102 10"/><path d="M10 5V2H7"/></svg> Refresh`; }, 1200);
+}
+</script>
+</body>
+</html>
